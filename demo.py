@@ -1,10 +1,6 @@
-import Simulator
-import YourController
-import YourObserver
-
-your_controller=YourController.controller()
-your_observer=YourObserver.observer()
-your_simulator=Simulator.simulator(total_step=1000,simulation_cycle=0.01,controller=your_controller,
-                                    observer=your_observer,GUI=True)
-your_simulator.run()
-
+from simulator import simulator
+from sailboat_v3 import sailboat
+import math
+my_controllers=[sailboat(position=[1,1,0,0],true_wind=[1.5,-math.pi/2])] 
+a=simulator(my_controllers,config_file="config/test.txt")
+a.run()

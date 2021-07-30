@@ -42,7 +42,7 @@ class simulator:
         self.observer=observer
         self.dynamic_models=[four_DOF_simulator.single_sailboat_4DOF_simulator(location_and_orientation=self.poses[i],
                                 boat_type=self.boat_types[i],sample_time=self.simulation_cycle) for i in range(self.N)]
-        self.GUI=GUI.scene_displayer(N=self.N,poses=self.poses,cycle=self.GUI_cycle,boat_type=self.boat_types)
+        self.GUI=GUI.scene_displayer(N=self.N,poses=self.poses,components=self.components,cycle=self.GUI_cycle,boat_type=self.boat_types)
         self.data_writer=data_writer.data_writer(cycle=self.command_cycle,mission="position keeping")
 
 
@@ -135,6 +135,3 @@ class simulator:
 
             
 
-my_controllers=[sailboat(position=[1,1,0,0],true_wind=[1.5,-math.pi/2])] 
-a=simulator(my_controllers,config_file="config/test.txt")
-a.run()
