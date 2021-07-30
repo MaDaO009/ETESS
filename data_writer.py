@@ -9,7 +9,6 @@ import time
 import xlsxwriter
 import random
 from collections import deque
-import globalvar as gl
 import os
 
 

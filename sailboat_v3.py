@@ -60,6 +60,7 @@ class sailboat:
 
     ## predict the state for next moment and make decision  
     def update_state(self,true_wind,new_location):
+        
         self.time+=3
         new_location[3]=self.regular_angle(new_location[3])
         boat_to_target_angle=math.atan2(self.target[1]-self.position[1],self.target[0]-self.position[0])
@@ -94,7 +95,7 @@ class sailboat:
         # print(self.sail,11111111111111111)
         
         
-        return self.rudder,self.sail,self.desired_angle,point_list
+        return [self.rudder,self.sail]
 
     def compare_heading_and_course(self,course_angle):
         if abs(self.position[3]-course_angle)>0.4:

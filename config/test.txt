@@ -1,0 +1,15 @@
+["sailboat"] #boat_types 
+[[1,1,0,0]]       #init pose     
+[[0, 0, 0, 0]]    #init twist     
+[[0,0]]      #init components 
+[[0,0]]      #init commands   
+[1.5,-1.5708]                                    #true_wind
+1000                                            #total_steps
+0.1                                               #command_cycle
+0.01                                           #simulation_cycle
+0.02                                             #GUI_cycle
+0                                            #save
+0                                            #experiment
+1                                             #GUI_EN
+
+

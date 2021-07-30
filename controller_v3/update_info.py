@@ -35,7 +35,7 @@ class info_updator():
     def update_velocity(self,new_location,position):
             [x,y,roll,heading_angle]=new_location
             [last_x,last_y,last_roll,last_heading]=self.position
-
+            
             velocity=self.get_velocity(x,last_x,y,last_y,heading_angle,last_heading,roll,last_roll)
             
             course_angle=math.atan2(self.position[1]-last_y,self.position[0]-last_x)

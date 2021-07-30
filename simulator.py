@@ -1,105 +1,140 @@
-import four_DOF_simulator_v2
-import globalvar as gl
+import four_DOF_simulator 
+import re
+import four_DOF_simulator 
+import GUI
+import threading
+import numpy as np
+from time import time,sleep
 import math
-import time
-import random
+from sailboat_v3 import sailboat
+import data_writer
+import ast
+class simulator:
+    def __init__(self,controllers=[],
+                    observer=None,config_file="config/default.txt"):
+        with open(config_file, "r") as f:
+            self.boat_types=ast.literal_eval(re.split(r'#',f.readline())[0])
+            init_poses=ast.literal_eval(re.split(r'#',f.readline())[0])
+            self.poses=np.array(init_poses).astype(np.float64)
+            self.twists=np.array(ast.literal_eval(re.split(r'#',f.readline())[0])).astype(np.float64)
+            self.components=np.array(ast.literal_eval(re.split(r'#',f.readline())[0])).astype(np.float64)
+            self.commands=np.array(ast.literal_eval(re.split(r'#',f.readline())[0])).astype(np.float64)
+            self.true_wind=np.array(ast.literal_eval(re.split(r'#',f.readline())[0])).astype(np.float64)
+            # self.true_wind=[1.5,-math.pi/2]
+            self.total_step=int(re.split(r'#',f.readline())[0])
+            self.command_cycle=float(re.split(r'#',f.readline())[0])
+            self.simulation_cycle=float(re.split(r'#',f.readline())[0])
+            self.GUI_cycle=float(re.split(r'#',f.readline())[0])
+            self.save=bool(int(re.split(r'#',f.readline())[0]))
+            self.experiment=bool(int(re.split(r'#',f.readline())[0]))
+            self.GUI_EN=bool(int(re.split(r'#',f.readline())[0]))
 
-simulation_frequency=100
 
-def sign(p):
-    
-    if p>0:
-        return 1
-    elif p==0:
-        return 0
-    else:
-        return -1
+        self.N=len(self.boat_types)
+        self.stop_signal=False
+        self.counter=0
+        # self.controllers=[sailboat(position=self.poses,true_wind=self.true_wind)]
+        self.controllers=controllers
+        for i in range(self.N): 
+            self.controllers[i].position=init_poses[i]
+            # self.controllers[i].position=self.poses[i]
+            self.controllers[i].true_wind=self.true_wind.copy()
+        self.observer=observer
+        self.dynamic_models=[four_DOF_simulator.single_sailboat_4DOF_simulator(location_and_orientation=self.poses[i],
+                                boat_type=self.boat_types[i],sample_time=self.simulation_cycle) for i in range(self.N)]
+        self.GUI=GUI.scene_displayer(N=self.N,poses=self.poses,cycle=self.GUI_cycle,boat_type=self.boat_types)
+        self.data_writer=data_writer.data_writer(cycle=self.command_cycle,mission="position keeping")
 
-def moving_sail(sail,current_sail):
+
+    def update_info_with_GUI(self):
+        while (not self.stop_signal):
+            self.GUI.update_pose(self.poses,self.components,self.stop_signal)
+            # print(self.components)
+            sleep(self.GUI_cycle)
+
+
+    def compute_dynamic(self):
+        while (not self.stop_signal):
+            start_time=time()
+            for i in range(self.N):
+                self.twists[i],self.poses[i],self.components[i][1]=\
+                    self.dynamic_models[i].step(self.poses[i],self.twists[i],
+                    self.commands[i], self.true_wind)
+                if self.boat_types[i]=='sailboat' or 'rudderboat':
+                    self.components[i][0]=self.commands[i][0]
+                else:
+                    self.components[i]=self.commands[i]
+            sleep_time=self.simulation_cycle-(time()-start_time)
+            # print(self.controllers[0].position,self.poses[0])
+            # print(self.twists[0],self.commands[0],self.components)
+            if sleep_time>0:
+                sleep(sleep_time)
+            
+
         
-    try:
-        if abs(sail-current_sail)>1/simulation_frequency:
-            current_sail+=sign(sail-current_sail)*1/simulation_frequency
-            # print('moving sail')
-    except:
-        print('an exception occurred when moving sail')
-    return current_sail
+    def compute_command_and_write_data(self):
+        while (not self.stop_signal):
+            self.counter+=1
+            start_time=time()
+            for i in range(self.N):
+                self.commands[i]=self.controllers[i].update_state(self.true_wind.copy(),self.poses[i].copy())
+                # self.data_writer.add_data(self.poses,self.twists,self.sail_command,
+                #                             self.rudder_command,self.true_wind,0,0)
+            # if self.counter%10==0: print(self.twists[0],self.controllers[0].velocity,self.commands[0],self.components,self.counter)
+            sleep_time=self.command_cycle-(time()-start_time)
+            if sleep_time>0:
+                sleep(sleep_time)
+            if self.counter>self.total_step:
+                self.stop_signal=True
+                if self.save:
+                    self.data_writer.write_data_points()
+            
+    # def non_GUI(self):
+    #     start_time=time()
+    #     if self.command_cycle/self.simulation_cycle<5:
+    #         print("Simulation frequency should be at least 5 times of controller frequency")
+    #     else:
+    #         for i in range(self.total_step):
+    #             for j in range(int(self.command_cycle/self.simulation_cycle)):
+    #                 # Compute dynamics
+    #                 self.twists,self.poses,self.components[1]=\
+    #                     self.dynamic_model.step(self.poses,self.twists,
+    #                             [self.sail_command,self.rudder_command], self.true_wind)
+                
+    #             # Compute command
+    #             self.rudder_command,self.sail_command,a,b=self.controller.update_state(self.true_wind,self.poses)
+    #             # Record data
+    #             self.data_writer.add_data(self.poses,self.twists,self.sail_command,
+    #                                         self.rudder_command,self.true_wind,0,0)
+    #         print("Simulated %d steps within %0.3f second(s)"%(self.total_step,(time()-start_time)))
+    #         if self.save: self.data_writer.write_data_points()
 
-def get_true_sail(sail,app_wind):
-    
-    if math.sin(app_wind[1])>0:
-        sail=-sail
-    # print([app_wind,sail])
-    if math.cos(app_wind[1]+math.pi)>math.cos(sail) or abs(app_wind[1]-sign(app_wind[1])*math.pi-sail)<0.02:
-        sail=app_wind[1]-sign(app_wind[1])*math.pi
+    def run(self):
+        if self.GUI_EN:
+            t1 = threading.Thread(target= self.GUI.main) 
+            t2 = threading.Thread(target= self.update_info_with_GUI)
+            if not self.experiment:
+                t3 = threading.Thread(target= self.compute_dynamic)
+            else:
+                t3 = threading.Thread(target= self.observer.run)
+            t4 = threading.Thread(target= self.compute_command_and_write_data)
 
-    return sail
+            t1.start() # start thread 1
+            t2.start()
+            t3.start()
+            t4.start()
 
-def get_app_wind(true_wind,v,u,heading_angle):
-        
-        ###this part is different from the paper since there might be something wrong in the paper
-        ###get coordinates of true wind
-        
-        app_wind=[true_wind[0]*math.cos(true_wind[1]-heading_angle)-v,
-                        true_wind[0]*math.sin(true_wind[1]-heading_angle)-u]
-        ###convert into polar system
-        angle=math.atan2(app_wind[1],app_wind[0])
-        app_wind=[math.sqrt(pow(app_wind[1],2)+pow(app_wind[0],2)),angle]
-        return app_wind
+            t1.join() # wait for the t1 thread to complete
+            self.stop_signal=True
+            t2.join()
+            t3.join()
+            t4.join()
+            
+        else:
+            self.non_GUI()
 
-s_frame_true_wind=[1.5,math.pi]
-def run():
-    counter=0
-    while True:
-        counter+=1
-        if gl.get_value('flag'):
-            break
-        sail=gl.get_value("sail")
-        rudder=gl.get_value("rudder")
-        v=gl.get_value("v")
-        u=gl.get_value("u")
-        p=gl.get_value("p")
-        w=gl.get_value("w")
-        x=gl.get_value("x")
-        y=gl.get_value("y")
-        roll=gl.get_value("roll")
-        heading_angle=gl.get_value('heading_angle')
-        true_wind=gl.get_value("true_wind")
-        # true_wind[1]+=0.001
-        gl.set_value('true_wind',true_wind)
-        
+            
 
-        current_sail=gl.get_value('current_sail')
-        current_sail=moving_sail(sail,current_sail)
-
-        app_wind=get_app_wind(true_wind,v,u,heading_angle)
-        true_sail=get_true_sail(current_sail,app_wind)
-        # print(true_sail,app_wind[1],"ttttssss")
-        # print([u,v,p,w],[x,y,roll,heading_angle],111)
-        s_frame_true_wind[1]=math.pi/2-true_wind[1]
-        a,b,app_wind[1]=four_DOF_simulator_v2.to_next_moment(1/simulation_frequency,v,-u,-p,-w,y,x,-roll,math.pi/2-heading_angle,true_sail,rudder,s_frame_true_wind,counter)
-        [v,u,p,w]=-a
-        
-        # print(app_wind)
-        app_wind[1]=-app_wind[1]
-        v*=-1
-
-        [y,x,roll,heading_angle]=b
-        roll=-roll
-        heading_angle=math.pi/2-heading_angle
-        
-        gl.set_value("current_sail",current_sail)
-        gl.set_value("v",v)
-        gl.set_value("u",u)
-        gl.set_value("p",p)
-        gl.set_value("w",w)
-        gl.set_value("x",x)
-        gl.set_value('ob_x',x+random.random()*0.03)
-        gl.set_value("y",y)
-        gl.set_value('ob_y',y+random.random()*0.03)
-        gl.set_value("roll",roll)
-        gl.set_value("heading_angle",heading_angle)
-        gl.set_value("app_wind",app_wind)
-        # print('simulating')
-        time.sleep(0.01)
-   
+my_controllers=[sailboat(position=[1,1,0,0],true_wind=[1.5,-math.pi/2])] 
+a=simulator(my_controllers,config_file="config/test.txt")
+a.run()

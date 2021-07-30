@@ -85,7 +85,6 @@ start_tacking_time,counter,force_turning_angle,boat_to_target_angle):
             if sign(math.sin(desired_angle-true_wind[1])) != sign(math.sin(heading_angle-true_wind[1])) and force_turning_angle==None:
                 ###Yes, it's a tacking
                 if v>0.3 and (math.cos(true_wind[1]-boat_to_target_angle)>-0.8 or force_turning_angle !=None):
-                    
                     start_tacking_time=counter
                     tacking_sign=sign(math.sin(heading_angle-true_wind[1]))
                     tacking_angle=desired_angle

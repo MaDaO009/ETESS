@@ -1,71 +1,26 @@
 import pygame
-import OpenGL
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
-import pywavefront
 import numpy as np
 import math
 from time import time,sleep
 from scipy.spatial.transform import Rotation
-
+from GUI_boat import boat
 
 
 class scene_displayer:
-    def __init__(self,pos_and_orientation=[0,0,0,0],rudder=0,sail=0,cycle=0.01,pool_size=[6,9],boat_type="sailboat"):
-        self.boat_type=boat_type
-        self.boat = pywavefront.Wavefront('boat.obj', collect_faces=True)
-        self.scaled_size   = 1
-        self.boat_color=[0.5,0.5,0.5]
-        self.sail_color=[0.8,0.9,1]
-        self.rudder_color=[0.8,0.9,1]
+    def __init__(self,N=1,poses=[[0,0,0,0]],components=[[0,0]],cycle=0.01,pool_size=[6,9],boat_type=["sailboat"]):
+        self.boats=[boat(poses[i],components[i],boat_type[i]) for i in range(N)]
+        self.N=N
 
-        self.boat_scale,self.boat_trans=self.init_obj(self.boat,'boat')
-
-        self.rudder_obj=pywavefront.Wavefront('rudder.obj', collect_faces=True)
-        self.rudder_scale, self.rudder_trans =  self.init_obj(self.rudder_obj,'rudder')
-        self.rudder_pos=+np.array([-130,0,0])
-
-        self.sail_obj=pywavefront.Wavefront('sail.obj', collect_faces=True)
-        self.sail_scale, self.sail_trans =  self.init_obj(self.sail_obj,'sail')
-        self.sail_pos=np.array([0,0,0])
-        self.pos=np.array([2,7,0])
-        self.pos_and_orientation=np.array(pos_and_orientation)
-        self.sail=sail
-        self.rudder=rudder
         self.cycle=cycle
         self.stop_signal=False
-        self.window_size=(1200,800)
+        self.window_size=(900,600)
         self.pool_size=pool_size
-        
-        
-
-    def init_obj(self,obj,name):
-        box = (obj.vertices[0], obj.vertices[0])
-        for vertex in obj.vertices:
-            min_v = [min(box[0][i], vertex[i]) for i in range(3)]
-            max_v = [max(box[1][i], vertex[i]) for i in range(3)]
-            box = (min_v, max_v)
-        # if name=='boat' or 'sail':
-        box[0][2]-=box[1][2]
-        box[1][2]=0
-
-        boat_size     = [box[1][i]-box[0][i] for i in range(3)]
-        max_boat_size = max(boat_size)
-        
-        scale    = np.array([self.scaled_size/max_boat_size for i in range(3)])
-        
-        trans    = np.array([-(box[1][i]+box[0][i])/2 for i in range(3)])
-        if name=='rudder':
-            scale    = np.array([self.scaled_size/max_boat_size/2 for i in range(3)])
-            trans[0]=box[1][0]
-        if name=='sail':
-            trans[0]=box[1][0]
-
-        return scale,trans
+            
     
     def draw_pool(self,x,y):
-        # glPushMatrix()
         glPushName(1)
         glBegin(GL_QUADS)
         # glColor4f(0.05, 0.05, 0.95, 0.3)
@@ -117,7 +72,7 @@ class scene_displayer:
         glEnd()
 
 
-    def Draw_boat(self,x,y,roll,yaw,rudder,sail):
+    def Draw_boat(self,x,y,roll,yaw,rudder,sail,boat_number):
         st=time()
         rot = Rotation.from_euler('zyx', [yaw, roll, 0], degrees=True)
         rot_vec = rot.as_rotvec()
@@ -136,18 +91,18 @@ class scene_displayer:
         roll_mat=np.array(rot_roll.as_matrix())
         ############################################# Hull ##################################################
         glPushMatrix()
-        glColor3f(*self.boat_color)  
-        glScalef(*self.boat_scale)
+        glColor3f(*self.boats[boat_number].boat_color)  
+        glScalef(*self.boats[boat_number].boat_scale)
         glTranslatef(*np.array([x,y,0.25*270]))
         glRotatef(math.sqrt(np.sum(rot_vec**2))*57.32, rot_vec[1], rot_vec[0], rot_vec[2])
-        glTranslatef(*-self.boat_trans)
+        glTranslatef(*-self.boats[boat_number].boat_trans)
 
         
-        for mesh in self.boat.mesh_list:
+        for mesh in self.boats[boat_number].boat.mesh_list:
             glBegin(GL_TRIANGLES)
             for face in mesh.faces:
                 for vertex_i in face:
-                    glVertex3f(*np.array(self.boat.vertices[vertex_i]))
+                    glVertex3f(*np.array(self.boats[boat_number].boat.vertices[vertex_i]))
             glEnd()
         
         
@@ -155,67 +110,45 @@ class scene_displayer:
         ############################################# Hull ##################################################
 
 
-        if self.boat_type=="diffboat": return
+        if self.boats[boat_number].boat_type=="diffboat": return
         ############################################ Rudder #################################################
         glPushMatrix()
-        glScalef(*self.rudder_scale)
+        glScalef(*self.boats[boat_number].rudder_scale)
         # rot_mat*
-        glColor3f (*self.rudder_color)
-        glTranslatef(*np.array([x,y,0.25*270])*self.boat_scale/self.rudder_scale)
+        glColor3f (*self.boats[boat_number].rudder_color)
+        glTranslatef(*np.array([x,y,0.25*270])*self.boats[boat_number].boat_scale/self.boats[boat_number].rudder_scale)
         glRotatef(math.sqrt(np.sum(rot_vec**2))*57.32, rot_vec[1], rot_vec[0], rot_vec[2])
         glTranslatef(*np.array([-120,0,-60]))
         glRotatef(rudder,0,0,1)
-        glTranslatef(*-self.rudder_trans)
+        glTranslatef(*-self.boats[boat_number].rudder_trans)
         
-        for mesh in self.rudder_obj.mesh_list:
+        for mesh in self.boats[boat_number].rudder_obj.mesh_list:
             glBegin(GL_TRIANGLES)
             for face in mesh.faces:
                 for vertex_i in face:
-                    glVertex3f(*np.array(self.rudder_obj.vertices[vertex_i]))
+                    glVertex3f(*np.array(self.boats[boat_number].rudder_obj.vertices[vertex_i]))
             glEnd()
         glPopMatrix()
         ############################################ Rudder #################################################
 
-        
-
-
-        ############################################# Axis ##################################################
-        glPushMatrix()
-        glScalef(*self.boat_scale)
-        glBegin(GL_LINES)
-
-        glColor3f (1.0, 0.0, 1.0)
-        glVertex3f(0.0, 0.0, 0.0)
-        glVertex3f(200.0, 0.0, 0.0)
-
-        glColor3f (1.0, 0.0, 1.0)
-        glVertex3f(0.0, 0.0, 0.0)
-        glVertex3f(0.0, 200.0, 0.0)
-
-        glColor3f (1.0, 0.0, 1.0)
-        glVertex3f(0.0, 0.0, 0.0)
-        glVertex3f(0.0, 0.0, 200.0)
-        glEnd()
-
-        glPopMatrix()
-        ############################################# Axis ##################################################
-        if self.boat_type=="rudderboat": return
+    
+        if self.boats[boat_number].boat_type=="rudderboat": return
         
         ############################################# Sail ##################################################
         glPushMatrix()
-        glColor3f(*self.sail_color)  
-        glScalef(*self.sail_scale)
-        glTranslatef(*np.array([x,y,0.25*270])*self.boat_scale/self.sail_scale)
+        glColor3f(*self.boats[boat_number].sail_color)  
+        glScalef(*self.boats[boat_number].sail_scale)
+        glTranslatef(*np.array([x,y,0.25*270])*self.boats[boat_number].boat_scale/self.boats[boat_number].sail_scale)
         glRotatef(math.sqrt(np.sum(rot_vec**2))*57.32, rot_vec[1], rot_vec[0], rot_vec[2])
         glTranslatef(*np.array([1000,0,7000]))
         glRotatef(sail,0,0,1)
-        glTranslatef(*-self.sail_trans)
+        glTranslatef(*-self.boats[boat_number].sail_trans)
 
-        for mesh in self.sail_obj.mesh_list:
+        for mesh in self.boats[boat_number].sail_obj.mesh_list:
             glBegin(GL_TRIANGLES)
             for face in mesh.faces:
                 for vertex_i in face:
-                    glVertex3f(*np.array(self.sail_obj.vertices[vertex_i]))
+                    glVertex3f(*np.array(self.boats[boat_number].sail_obj.vertices[vertex_i]))
             glEnd()
 
 
@@ -271,9 +204,10 @@ class scene_displayer:
 
             # glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-            # self.Draw_boat(1000*math.sin(i),1000*math.cos(i),0,j,j,j*2,j*2)
+
             self.draw_pool(self.pool_size[0],self.pool_size[1])
-            self.Draw_boat(*self.pos_and_orientation,self.rudder*57.32,self.sail*57.32)
+            for i in range(self.N): self.Draw_boat(*self.boats[i].pose,self.boats[i].components[0]*57.32,self.boats[i].components[1]*57.32,i)
+
             
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
@@ -282,21 +216,19 @@ class scene_displayer:
             sleep_time=self.cycle-(time()-start_time)
             if sleep_time>0:
                 sleep(sleep_time)
+            # print(sleep_time)
         print("command stop")
 
 
-    def update_pose(self,pos_and_orientation,rudder,sail,stop_signal):
-        self.pos_and_orientation=np.array(pos_and_orientation)
-        # print(self.pos_and_orientation)
-        self.pos_and_orientation[0]*=270
-        self.pos_and_orientation[1]*=270
-        self.pos_and_orientation[2]*=57.32
-        self.pos_and_orientation[3]*=57.32
-        self.sail=sail
-        self.rudder=rudder
+    def update_pose(self,poses,components,stop_signal):
+        for i in range(self.N):
+            self.boats[i].pose=np.array(poses[i])
+            # print(self.boats[i].poses)
+            self.boats[i].pose[0]*=270
+            self.boats[i].pose[1]*=270
+            self.boats[i].pose[2]*=57.32
+            self.boats[i].pose[3]*=57.32
+            self.boats[i].components=components[i]
         self.stop_signal=stop_signal
-        # print(self.sail,self.rudder)
-        
 
-# a=scene_displayer()
-# a.main()
+        

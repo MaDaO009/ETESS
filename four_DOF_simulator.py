@@ -37,11 +37,11 @@ class single_sailboat_4DOF_simulator:
             self.move_sail()
             com1_torque=self.get_sail_torque(wind_angle_of_attack,app_wind_speed,angle_app_wind)
         elif self.boat_type=="rudderboat":
-            com1_torque=self.get_thruster_torque(command[0])
+            com1_torque=self.get_thruster_torque(command[1])
 
         com2_torque=self.get_rudder_torque()
         if self.boat_type=="diffboat":
-            com1_torque=self.get_thrusters_torque(command[0],command[1])
+            com1_torque=self.get_thrusters_torque(command[1],command[0])
             com2_torque=np.array([0,0,0,0]).T
         Coriolis_v=self.get_C_v()
         D_vn=self.get_D_vn(app_wind_speed,angle_app_wind)
@@ -65,14 +65,14 @@ class single_sailboat_4DOF_simulator:
         return np.array([force1+force2,0,0,-force1*0.05+force2*0.05])
 
     def move_sail(self):
-        if abs(self.command[0]-self.true_sail)>self.sample_time*3:
-            self.true_sail+=self.sign(self.command[0]-self.true_sail)*self.sample_time*3
+        if abs(self.command[1]-self.true_sail)>self.sample_time*3:
+            self.true_sail+=self.sign(self.command[1]-self.true_sail)*self.sample_time*3
 
     def get_true_sail(self,angle_app_wind):  
         if math.sin(angle_app_wind)>0:
-            self.command[0]=-self.command[0]
-        if math.cos(angle_app_wind+math.pi)>math.cos(self.command[0]) or abs(angle_app_wind-self.sign(angle_app_wind)*math.pi-self.command[0])<0.02:
-            self.command[0]=angle_app_wind-self.sign(angle_app_wind)*math.pi
+            self.command[1]=-self.command[1]
+        if math.cos(angle_app_wind+math.pi)>math.cos(self.command[1]) or abs(angle_app_wind-self.sign(angle_app_wind)*math.pi-self.command[1])<0.02:
+            self.command[1]=angle_app_wind-self.sign(angle_app_wind)*math.pi
     
 
     def update_parameters(self,location_and_orientation,v_and_angular_v,command,true_wind):
@@ -119,7 +119,7 @@ class single_sailboat_4DOF_simulator:
         
         rudder_speed=math.sqrt(v_rudder**2+u_rudder**2)
         angle_app_rudder=-math.atan2(-v_rudder,-u_rudder)
-        rudder_angle_of_attack=angle_app_rudder+self.command[1]
+        rudder_angle_of_attack=angle_app_rudder+self.command[0]
         
         rudder_lift=7.2*rudder_speed**2*get_rudder_lift_coefficient(rudder_angle_of_attack)
         rudder_drag=7.2*rudder_speed**2*get_rudder_drag_coefficient(rudder_angle_of_attack)
