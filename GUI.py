@@ -97,7 +97,6 @@ class scene_displayer:
         glRotatef(math.sqrt(np.sum(rot_vec**2))*57.32, rot_vec[1], rot_vec[0], rot_vec[2])
         glTranslatef(*-self.boats[boat_number].boat_trans)
 
-        
         for mesh in self.boats[boat_number].boat.mesh_list:
             glBegin(GL_TRIANGLES)
             for face in mesh.faces:
@@ -214,6 +213,7 @@ class scene_displayer:
             pygame.display.flip()
             # pygame.time.wait(10)
             sleep_time=self.cycle-(time()-start_time)
+            # print(time()-start_time)
             if sleep_time>0:
                 sleep(sleep_time)
             # print(sleep_time)

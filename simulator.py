@@ -28,6 +28,7 @@ class simulator:
             self.save=bool(int(re.split(r'#',f.readline())[0]))
             self.experiment=bool(int(re.split(r'#',f.readline())[0]))
             self.GUI_EN=bool(int(re.split(r'#',f.readline())[0]))
+            self.leader=bool(int(re.split(r'#',f.readline())[0]))
 
 
         self.N=len(self.boat_types)
@@ -76,10 +77,13 @@ class simulator:
         while (not self.stop_signal):
             self.counter+=1
             start_time=time()
-            for i in range(self.N):
-                self.commands[i]=self.controllers[i].update_state(self.true_wind.copy(),self.poses[i].copy())
-                # self.data_writer.add_data(self.poses,self.twists,self.sail_command,
-                #                             self.rudder_command,self.true_wind,0,0)
+            if self.leader:
+                self.commands=self.controllers[0].update_state(self.true_wind.copy(),self.poses.copy())
+            else:
+                for i in range(self.N):
+                    self.commands[i]=self.controllers[i].update_state(self.true_wind.copy(),self.poses[i].copy())
+            # self.data_writer.add_data(self.poses,self.twists,self.sail_command,
+            #                             self.rudder_command,self.true_wind,0,0)
             # if self.counter%10==0: print(self.twists[0],self.controllers[0].velocity,self.commands[0],self.components,self.counter)
             sleep_time=self.command_cycle-(time()-start_time)
             if sleep_time>0:
