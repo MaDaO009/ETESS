@@ -10,7 +10,7 @@ from GUI_boat import boat
 
 
 class scene_displayer:
-    def __init__(self,N=1,poses=[[0,0,0,0]],components=[[0,0]],cycle=0.01,pool_size=[6,9],boat_type=["sailboat"]):
+    def __init__(self,N=1,poses=[[0,0,0,0]],components=[[0,0]],cycle=0.01,pool_size=[6,20],boat_type=["sailboat"]):
         self.boats=[boat(poses[i],components[i],boat_type[i]) for i in range(N)]
         self.N=N
 
@@ -162,7 +162,7 @@ class scene_displayer:
         
         gluPerspective(45, (self.window_size[0] / self.window_size[1]), 1, 500.0)
         
-        glTranslatef(-self.pool_size[0]/2, -self.pool_size[1]/2, -12)
+        glTranslatef(-self.pool_size[0]/2, -self.pool_size[1]/2, -25)
         i=0
         k=0
         j=0

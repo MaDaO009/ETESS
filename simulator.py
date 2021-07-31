@@ -36,15 +36,20 @@ class simulator:
         self.counter=0
         # self.controllers=[sailboat(position=self.poses,true_wind=self.true_wind)]
         self.controllers=controllers
-        for i in range(self.N): 
-            self.controllers[i].position=init_poses[i]
-            # self.controllers[i].position=self.poses[i]
-            self.controllers[i].true_wind=self.true_wind.copy()
+        if self.leader:
+            self.controllers.poses=init_poses
+            self.controllers.N=self.N
+            self.controllers.init()
+        else:
+            for i in range(self.N): 
+                self.controllers[i].position=init_poses[i]
+                # self.controllers[i].position=self.poses[i]
+                self.controllers[i].true_wind=self.true_wind.copy()
         self.observer=observer
         self.dynamic_models=[four_DOF_simulator.single_sailboat_4DOF_simulator(location_and_orientation=self.poses[i],
                                 boat_type=self.boat_types[i],sample_time=self.simulation_cycle) for i in range(self.N)]
         self.GUI=GUI.scene_displayer(N=self.N,poses=self.poses,components=self.components,cycle=self.GUI_cycle,boat_type=self.boat_types)
-        self.data_writer=data_writer.data_writer(cycle=self.command_cycle,mission="position keeping")
+        self.data_writer=data_writer.data_writer(N=self.N,cycle=self.command_cycle,mission="position keeping")
 
 
     def update_info_with_GUI(self):
@@ -78,12 +83,11 @@ class simulator:
             self.counter+=1
             start_time=time()
             if self.leader:
-                self.commands=self.controllers[0].update_state(self.true_wind.copy(),self.poses.copy())
+                self.commands=self.controllers.update_state(self.true_wind.copy(),self.poses.copy(),self.twists.copy())
             else:
                 for i in range(self.N):
                     self.commands[i]=self.controllers[i].update_state(self.true_wind.copy(),self.poses[i].copy())
-            # self.data_writer.add_data(self.poses,self.twists,self.sail_command,
-            #                             self.rudder_command,self.true_wind,0,0)
+            if self.save: self.data_writer.add_data(self.poses,self.twists,self.commands,self.true_wind,0,0)
             # if self.counter%10==0: print(self.twists[0],self.controllers[0].velocity,self.commands[0],self.components,self.counter)
             sleep_time=self.command_cycle-(time()-start_time)
             if sleep_time>0:
@@ -93,25 +97,33 @@ class simulator:
                 if self.save:
                     self.data_writer.write_data_points()
             
-    # def non_GUI(self):
-    #     start_time=time()
-    #     if self.command_cycle/self.simulation_cycle<5:
-    #         print("Simulation frequency should be at least 5 times of controller frequency")
-    #     else:
-    #         for i in range(self.total_step):
-    #             for j in range(int(self.command_cycle/self.simulation_cycle)):
-    #                 # Compute dynamics
-    #                 self.twists,self.poses,self.components[1]=\
-    #                     self.dynamic_model.step(self.poses,self.twists,
-    #                             [self.sail_command,self.rudder_command], self.true_wind)
+    def non_GUI(self):
+        start_time=time()
+        if self.command_cycle/self.simulation_cycle<5:
+            print("Simulation frequency should be at least 5 times of controller frequency")
+        else:
+            for i in range(self.total_step):
+                for j in range(int(self.command_cycle/self.simulation_cycle)):
+                    # Compute dynamics
+                    for k in range(self.N):
+                        self.twists[k],self.poses[k],self.components[k][1]=\
+                            self.dynamic_models[k].step(self.poses[k],self.twists[k],
+                            self.commands[k], self.true_wind)
+                        if self.boat_types[k]=='sailboat' or 'rudderboat':
+                            self.components[k][0]=self.commands[k][0]
+                        else:
+                            self.components[k]=self.commands[k]
                 
-    #             # Compute command
-    #             self.rudder_command,self.sail_command,a,b=self.controller.update_state(self.true_wind,self.poses)
-    #             # Record data
-    #             self.data_writer.add_data(self.poses,self.twists,self.sail_command,
-    #                                         self.rudder_command,self.true_wind,0,0)
-    #         print("Simulated %d steps within %0.3f second(s)"%(self.total_step,(time()-start_time)))
-    #         if self.save: self.data_writer.write_data_points()
+                # Compute command
+                if self.leader:
+                    self.commands=self.controllers.update_state(self.true_wind.copy(),self.poses.copy(),self.twists.copy())
+                else:
+                    for i in range(self.N):
+                        self.commands[i]=self.controllers[i].update_state(self.true_wind.copy(),self.poses[i].copy())
+                # Record data
+                if self.save: self.data_writer.add_data(self.poses,self.twists,self.commands,self.true_wind,0,0)
+            print("Simulated %d steps within %0.3f second(s)"%(self.total_step,(time()-start_time)))
+            if self.save: self.data_writer.write_data_points()
 
     def run(self):
         if self.GUI_EN:
