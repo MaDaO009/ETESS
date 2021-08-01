@@ -38,7 +38,7 @@ class single_sailboat_4DOF_simulator:
             com1_torque=self.get_sail_torque(wind_angle_of_attack,app_wind_speed,angle_app_wind)
         elif self.boat_type=="rudderboat":
             com1_torque=self.get_thruster_torque(command[1])
-
+            self.true_sail=command[1]
         com2_torque=self.get_rudder_torque()
         if self.boat_type=="diffboat":
             com1_torque=self.get_thrusters_torque(command[1],command[0])

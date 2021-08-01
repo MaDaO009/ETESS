@@ -1,3 +1,4 @@
+from xlsxwriter import workbook
 import four_DOF_simulator 
 import re
 import four_DOF_simulator 
@@ -9,6 +10,10 @@ import math
 from sailboat_v3 import sailboat
 import data_writer
 import ast
+import os
+import xlrd
+
+
 class simulator:
     def __init__(self,controllers=[],
                     observer=None,config_file="config/default.txt"):
@@ -34,6 +39,7 @@ class simulator:
         self.N=len(self.boat_types)
         self.stop_signal=False
         self.counter=0
+        self.replay_counter=3
         # self.controllers=[sailboat(position=self.poses,true_wind=self.true_wind)]
         self.controllers=controllers
         if self.leader:
@@ -54,7 +60,7 @@ class simulator:
 
     def update_info_with_GUI(self):
         while (not self.stop_signal):
-            self.GUI.update_pose(self.poses,self.components,self.stop_signal)
+            self.GUI.update_pose(self.poses,self.twists,self.components,self.stop_signal)
             # print(self.components)
             sleep(self.GUI_cycle)
 
@@ -76,8 +82,6 @@ class simulator:
             if sleep_time>0:
                 sleep(sleep_time)
             
-
-        
     def compute_command_and_write_data(self):
         while (not self.stop_signal):
             self.counter+=1
@@ -87,7 +91,7 @@ class simulator:
             else:
                 for i in range(self.N):
                     self.commands[i]=self.controllers[i].update_state(self.true_wind.copy(),self.poses[i].copy())
-            if self.save: self.data_writer.add_data(self.poses,self.twists,self.commands,self.true_wind,0,0)
+            if self.save: self.data_writer.add_data(self.poses,self.twists,self.components,self.true_wind,0,0)
             # if self.counter%10==0: print(self.twists[0],self.controllers[0].velocity,self.commands[0],self.components,self.counter)
             sleep_time=self.command_cycle-(time()-start_time)
             if sleep_time>0:
@@ -121,7 +125,7 @@ class simulator:
                     for i in range(self.N):
                         self.commands[i]=self.controllers[i].update_state(self.true_wind.copy(),self.poses[i].copy())
                 # Record data
-                if self.save: self.data_writer.add_data(self.poses,self.twists,self.commands,self.true_wind,0,0)
+                if self.save: self.data_writer.add_data(self.poses,self.twists,self.components,self.true_wind,0,0)
             print("Simulated %d steps within %0.3f second(s)"%(self.total_step,(time()-start_time)))
             if self.save: self.data_writer.write_data_points()
 
@@ -149,5 +153,42 @@ class simulator:
         else:
             self.non_GUI()
 
-            
+    def update_GUI_replay(self,sleep_time):
+        nrows = self.tables[0].nrows
+        while (not self.stop_signal):
+            self.poses=np.array([[self.tables[i].cell(self.replay_counter,k).value for k in range(1,5)] for i in range(self.N)]).astype(np.float64)
+            self.twists=np.array([[self.tables[i].cell(self.replay_counter,k).value for k in range(5,9)] for i in range(self.N)]).astype(np.float64)
+            self.commands=np.array([[self.tables[i].cell(self.replay_counter,k).value for k in range(9,11)] for i in range(self.N)]).astype(np.float64)
+            self.GUI.update_pose(self.poses,self.twists,self.components,self.stop_signal)
+            self.replay_counter+=1
+            if self.replay_counter==nrows:
+                self.stop_signal=False
+                return
+            sleep(sleep_time)
 
+    def replay(self,path,sleep_time):
+        filelist=[]
+        for root, dirs, files in os.walk(path, topdown=False):
+            for name in files:
+                str=os.path.join(root, name)
+                
+                if str.split('.')[-1]=='xlsx':
+                    str=str.replace('\\','/')
+                    filelist.append(str)
+        self.N=len(filelist)
+        workbooks = [xlrd.open_workbook(filelist[i]) for i in range(self.N)]   
+        self.tables=[workbooks[i].sheets()[0] for i in range(self.N)]
+
+        self.poses=np.array([[self.tables[i].cell(self.replay_counter,k).value for k in range(1,5)] for i in range(self.N)]).astype(np.float64)
+        self.twists=np.array([[self.tables[i].cell(self.replay_counter,k).value for k in range(5,9)] for i in range(self.N)]).astype(np.float64)
+        self.commands=np.array([[self.tables[i].cell(self.replay_counter,k).value for k in range(9,11)] for i in range(self.N)]).astype(np.float64)
+
+        t1 = threading.Thread(target= self.GUI.main) 
+        t2 = threading.Thread(target= self.update_GUI_replay,kwargs={'sleep_time':sleep_time})
+
+        t1.start() # start thread 1
+        t2.start()
+        
+        t1.join() # wait for the t1 thread to complete
+        self.stop_signal=True
+        t2.join()

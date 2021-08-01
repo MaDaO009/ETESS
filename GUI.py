@@ -1,4 +1,5 @@
 import pygame
+from pygame import display
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -18,29 +19,32 @@ class scene_displayer:
         self.stop_signal=False
         self.window_size=(900,600)
         self.pool_size=pool_size
-        
-
+        self.refresh_rate=3
+        self.counter=0
+        self.boat_index=0
+        self.display_index=0
+        self.display_order=['v','u','r','p','roll','yaw']
         
     def drawText(self, font, x, y, text):                                                
         textSurface = font.render(text, True, (255,255,255,255),(0,0,0,255))
         textData = pygame.image.tostring(textSurface, "RGBA", True)
-        glWindowPos2d(x, y)
+        glWindowPos2d(x-textSurface.get_width()/2, y)
         glDrawPixels(textSurface.get_width(), textSurface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, textData)        
     
-    def drawLine(self, points, color):
-        x1 = points[0][0]*1.0/100
-        y1 = points[0][1]*1.0/100
-        x2 = points[1][0]*1.0/100
-        y2 = points[1][1]*1.0/100
-        line_surface=1
-        
-        glViewport(0, 0, 100, 100)
-        glColor(*color)
-        glBegin(GL_LINES)
-        glVertex(x1, y1, 0.0)
-        glVertex(x2, y2, 0.0)
-        glEnd()
-        glViewport(0, 0, self.window_size[0], self.window_size[1])
+    def drawLines(self,offscreen_surface):
+        pygame.draw.line(offscreen_surface, (255,255,255), (0,0), (0, 100),3)
+        pygame.draw.line(offscreen_surface, (255,255,255), (0,0), ( 100,0),3)
+        pygame.draw.line(offscreen_surface, (255,255,255), (100,0), ( 100,100),3)
+        pygame.draw.line(offscreen_surface, (255,255,255), (0,100), ( 100,100),3)
+        if self.display_index<4:
+            for i in range(99):
+                pygame.draw.line(offscreen_surface, (255,255,255), (i, 95-95*self.boats[self.boat_index].twists_buffer[i][self.display_index]),
+                                                        (i+1, 95-95*self.boats[self.boat_index].twists_buffer[i+1][self.display_index]),3)
+        else:
+            temp=self.display_index-2
+            for i in range(99):
+                pygame.draw.line(offscreen_surface, (255,255,255), (i, 95-30*self.boats[self.boat_index].twists_buffer[i][temp]),
+                                                        (i+1, 95-30*self.boats[self.boat_index].twists_buffer[i+1][temp]),3)
 
     def draw_surface(self,surface):
         textData = pygame.image.tostring(surface, "RGBA", True)
@@ -97,7 +101,6 @@ class scene_displayer:
         glVertex3f(x, y, 0.0)
         glVertex3f(x, 0.0, 0.0)
         glEnd()
-
 
     def Draw_boat(self,x,y,roll,yaw,rudder,sail,boat_number):
         st=time()
@@ -198,10 +201,10 @@ class scene_displayer:
         pygame.init()
         # display = (1200, 800)
         win=pygame.display.set_mode(self.window_size, DOUBLEBUF | OPENGL)
-        font = pygame.font.SysFont('arial', 30, True)
+        font = pygame.font.SysFont('arial', 15, True)
 
         gluPerspective(45, (self.window_size[0] / self.window_size[1]), 1, 500.0)
-        offscreen_surface = pygame.Surface((100, 100))
+        
         glTranslatef(-self.pool_size[0]/2, -self.pool_size[1]/2, -25)
         
         while (not self.stop_signal):
@@ -228,10 +231,18 @@ class scene_displayer:
                         glTranslatef(0,0,1)
                     if event.key == pygame.K_e:
                         glTranslatef(0,0,-1)
+                    if event.key == pygame.K_j:
+                        self.boat_index=(self.boat_index+1)%self.N
+                    if event.key == pygame.K_l:
+                        self.boat_index=(self.boat_index-1)%self.N
+                    if event.key == pygame.K_i:
+                        self.display_index=(self.display_index+1)%6
+                    if event.key == pygame.K_k:
+                        self.display_index=(self.display_index-1)%6
             # prepare to render the texture-mapped rectangle
             
             
-            
+    
             # glEnable(GL_CULL_FACE)
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
@@ -244,8 +255,11 @@ class scene_displayer:
             # glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
             self.drawText(font,800,500,"123")
+            self.drawText(font,50,105,self.display_order[self.display_index])
+            self.drawText(font,50,155,"Boat: %d"%self.boat_index)
             # self.drawLine(((-100,2),(3,4000)),(1,1,1))
-            pygame.draw.line(offscreen_surface, (255,255,255), (0, 0), (100, 100),5)
+            offscreen_surface = pygame.Surface((100, 100))
+            self.drawLines(offscreen_surface)
             self.draw_surface(offscreen_surface)
             pygame.display.flip()
             
@@ -259,7 +273,8 @@ class scene_displayer:
         print("command stop")
 
 
-    def update_pose(self,poses,components,stop_signal):
+    def update_pose(self,poses,twists,components,stop_signal):
+        self.counter=(self.counter+1)%self.refresh_rate
         for i in range(self.N):
             self.boats[i].pose=np.array(poses[i])
             # print(self.boats[i].poses)
@@ -268,6 +283,12 @@ class scene_displayer:
             self.boats[i].pose[2]*=57.32
             self.boats[i].pose[3]*=57.32
             self.boats[i].components=components[i]
+            if self.counter==0:
+                self.boats[i].poses_buffer.append(list(poses[i]))
+                self.boats[i].twists_buffer.append(list(twists[i]))
+                del self.boats[i].poses_buffer[0]
+                del self.boats[i].twists_buffer[0]
+                # if i ==0: print(self.boats[1].twists_buffer)
         self.stop_signal=stop_signal
 
         

@@ -24,8 +24,8 @@ class boat:
         self.components=components
 
         self.len=len
-        self.poses_buffer=[]
-        self.twists_buffer=[]
+        self.poses_buffer=[[0,0,0,0] for i in range(100)]
+        self.twists_buffer=[[0,0,0,0] for i in range(100)]
 
     def init_obj(self,obj,name):
         box = (obj.vertices[0], obj.vertices[0])

@@ -4,7 +4,7 @@
 [[0,0], [0,0], [0,0], [0,0], [0,0]]      #init components 
 [[0,0], [0,0], [0,0], [0,0], [0,0]]      #init commands   
 [1.5,-1.57]                                    #true_wind
-1000                                            #total_steps
+3000                                            #total_steps
 0.02                                               #command_cycle
 0.01                                           #simulation_cycle
 0.02                                             #GUI_cycle

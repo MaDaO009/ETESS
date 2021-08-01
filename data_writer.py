@@ -10,7 +10,7 @@ import xlsxwriter
 import random
 from collections import deque
 import os
-
+import shutil
 
 class data_writer:
     def __init__(self,cycle=0.1,N=1,mission='input your mission'):
@@ -20,15 +20,16 @@ class data_writer:
         self.DataPoints = [deque(maxlen=None) for i in range(N)]
         self.mission=mission
 
-    def add_data(self,poses,twists,commands,true_wind,current,voltage):
+    def add_data(self,poses,twists,components,true_wind,current,voltage):
+        
         poses=[[float('{0:.2f}'.format(i)) for i in pos_and_orientation] for pos_and_orientation in poses]
         twists=[[float('{0:.2f}'.format(i)) for i in v_and_angular_v] for v_and_angular_v in twists]
-        commands=[[float('{0:.2f}'.format(i)) for i in command] for command in commands]
+        components=[[float('{0:.2f}'.format(i)) for i in component] for component in components]
         true_wind=str([float('{0:.2f}'.format(i)) for i in true_wind])
         current=float('{0:.2f}'.format(current))
         voltage=float('{0:.2f}'.format(voltage))
         for i in range(self.N):
-            self.DataPoints[i].append([self.sensor_time,*poses[i],*twists[i],*commands[i],true_wind,current,voltage])
+            self.DataPoints[i].append([self.sensor_time,*poses[i],*twists[i],*components[i],true_wind,current,voltage])
         self.sensor_time+=self.cycle
 
     def write_data_points(self):
@@ -36,9 +37,14 @@ class data_writer:
         file_name=input('Please input file name')
     
         runDate = time.ctime() 
-    
+        try:
+            os.mkdir("data/%s"%file_name)
+        except:
+            print("Folder data/%s already exist. Rewriting data"%file_name)
+            shutil.rmtree("data/%s"%file_name)
+            os.mkdir("data/%s"%file_name)
         # workbook = xlsxwriter.Workbook('/data/%s.xlsx'%file_name,{'constant_memory': True})
-        workbooks = [xlsxwriter.Workbook('data/%sboat%d.xlsx'%(file_name,i+1),{'constant_memory': True}) for i in range(self.N)]
+        workbooks = [xlsxwriter.Workbook('data/%s/%sboat%d.xlsx'%(file_name,file_name,i+1),{'constant_memory': True}) for i in range(self.N)]
         for book_number in range(self.N):
             worksheet = workbooks[book_number].add_worksheet() # Generating worksheet
             bold = workbooks[book_number].add_format({'bold':True}) # Formating for Bold text
@@ -52,8 +58,8 @@ class data_writer:
             worksheet.write('G1', 'u', bold)
             worksheet.write('H1', 'p', bold)
             worksheet.write('I1', 'w', bold)
-            worksheet.write('J1', 'command0', bold)
-            worksheet.write('K1', 'command1', bold)
+            worksheet.write('J1', 'components0', bold)
+            worksheet.write('K1', 'components1', bold)
             worksheet.write('L1', 'true wind', bold)
             worksheet.write('M1', 'Current (mA)', bold)
             worksheet.write('N1', 'Voltage (v)', bold)
