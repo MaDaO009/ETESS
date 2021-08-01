@@ -2,13 +2,14 @@ import pywavefront
 import numpy as np
 
 class boat:
-    def __init__(self,pose=[0,0,0,0],components=[0,0],boat_type="sailboat"):
+    def __init__(self,pose=[0,0,0,0],components=[0,0],boat_type="sailboat",len=200):
         self.boat_type=boat_type
         self.boat = pywavefront.Wavefront('obj/boat.obj', collect_faces=True)
         self.scaled_size   = 1
         self.boat_color=[0.5,0.5,0.5]
         self.sail_color=[0.8,0.9,1]
         self.rudder_color=[0.8,0.9,1]
+        
 
         self.boat_scale,self.boat_trans=self.init_obj(self.boat,'boat')
 
@@ -22,6 +23,9 @@ class boat:
         self.pose=np.array(pose)
         self.components=components
 
+        self.len=len
+        self.poses_buffer=[]
+        self.twists_buffer=[]
 
     def init_obj(self,obj,name):
         box = (obj.vertices[0], obj.vertices[0])

@@ -18,7 +18,6 @@ class scene_displayer:
         self.stop_signal=False
         self.window_size=(900,600)
         self.pool_size=pool_size
-        
 
         
     def drawText(self, font, x, y, text):                                                
@@ -26,26 +25,28 @@ class scene_displayer:
         textData = pygame.image.tostring(textSurface, "RGBA", True)
         glWindowPos2d(x, y)
         glDrawPixels(textSurface.get_width(), textSurface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, textData)        
-    
+
     def drawLine(self, points, color):
         x1 = points[0][0]*1.0/100
         y1 = points[0][1]*1.0/100
         x2 = points[1][0]*1.0/100
         y2 = points[1][1]*1.0/100
-        line_surface=1
+
         
         glViewport(0, 0, 100, 100)
+        glMatrixMode(GL_PROJECTION)
+        # glLoadIdentity()
         glColor(*color)
         glBegin(GL_LINES)
         glVertex(x1, y1, 0.0)
         glVertex(x2, y2, 0.0)
         glEnd()
+        glMatrixMode(GL_MODELVIEW)
+        # glLoadIdentity() 
+        
+        
         glViewport(0, 0, self.window_size[0], self.window_size[1])
 
-    def draw_surface(self,surface):
-        textData = pygame.image.tostring(surface, "RGBA", True)
-        glWindowPos2d(0, 0)
-        glDrawPixels(100, 100, GL_RGBA, GL_UNSIGNED_BYTE, textData)
 
     def draw_pool(self,x,y):
         glPushName(1)
@@ -182,27 +183,17 @@ class scene_displayer:
         glPopMatrix()
         ############################################# Sail ##################################################
 
-    def surfaceToTexture(self,texID, pygame_surface ): 
-        rgb_surface = pygame.image.tostring( pygame_surface, 'RGB')
-        glBindTexture(GL_TEXTURE_2D, texID)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP)
-        surface_rect = pygame_surface.get_rect()
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, surface_rect.width, surface_rect.height, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb_surface)
-        glGenerateMipmap(GL_TEXTURE_2D)
-        glBindTexture(GL_TEXTURE_2D, 0)
-
     def main(self):
         pygame.init()
         # display = (1200, 800)
         win=pygame.display.set_mode(self.window_size, DOUBLEBUF | OPENGL)
         font = pygame.font.SysFont('arial', 30, True)
-
         gluPerspective(45, (self.window_size[0] / self.window_size[1]), 1, 500.0)
-        offscreen_surface = pygame.Surface((100, 100))
+        
         glTranslatef(-self.pool_size[0]/2, -self.pool_size[1]/2, -25)
+
+        
+
         
         while (not self.stop_signal):
             start_time=time()
@@ -228,25 +219,22 @@ class scene_displayer:
                         glTranslatef(0,0,1)
                     if event.key == pygame.K_e:
                         glTranslatef(0,0,-1)
-            # prepare to render the texture-mapped rectangle
-            
-            
-            
+
             # glEnable(GL_CULL_FACE)
             glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
-            # # glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+            # glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
             self.draw_pool(self.pool_size[0],self.pool_size[1])
             for i in range(self.N): self.Draw_boat(*self.boats[i].pose,self.boats[i].components[0]*57.32,self.boats[i].components[1]*57.32,i)
             
-            # glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
             self.drawText(font,800,500,"123")
-            # self.drawLine(((-100,2),(3,4000)),(1,1,1))
-            pygame.draw.line(offscreen_surface, (255,255,255), (0, 0), (100, 100),5)
-            self.draw_surface(offscreen_surface)
+            self.drawLine(((-100,2),(3,4000)),(1,1,1))
+            
+
             pygame.display.flip()
             
 
