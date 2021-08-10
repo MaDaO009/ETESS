@@ -1,14 +1,14 @@
-["sailboat", "sailboat", "sailboat", "sailboat", "sailboat"] #boat_types 
-[[1,1,0,0], [2,1,0,0], [3,1,0,0], [4,1,0,0], [5,1,0,0]]       #init pose     
+["sailboat", "rudderboat", "sailboat", "rudderboat", "sailboat"] #boat_types 
+[[1,1,0,1.57], [2,1,0,1.57], [3,1,0,1.57], [4,1,0,1.57], [5,1,0,1.57]]       #init pose     
 [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]     #init twist     
 [[0,0], [0,0], [0,0], [0,0], [0,0]]      #init components 
 [[0,0], [0,0], [0,0], [0,0], [0,0]]      #init commands   
-[1.5,-1.57]                                    #true_wind
-100                                            #total_steps
+[1.5,3.14]                                    #true_wind
+500                                            #total_steps
 0.1                                               #command_cycle
 0.01                                           #simulation_cycle
 0.02                                             #GUI_cycle
-0                                            #save
+1                                            #save
 0                                            #experiment
 1                                             #GUI_EN
-0                                             #leader
+1                                             #leader
